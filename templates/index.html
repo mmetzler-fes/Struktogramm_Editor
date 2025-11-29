@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Struktogramm Editor</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+	<!-- Google Fonts for a premium look -->
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+	<div class="app-container">
+		<aside class="sidebar">
+			<h2>Toolbox</h2>
+			<div class="toolbox">
+				<div class="draggable-item" draggable="true" data-type="command">Command</div>
+				<div class="draggable-item" draggable="true" data-type="if_else">If / Else</div>
+				<div class="draggable-item" draggable="true" data-type="for_loop">For Loop</div>
+				<div class="draggable-item" draggable="true" data-type="while_loop">While Loop (Head)</div>
+				<div class="draggable-item" draggable="true" data-type="repeat_loop">Repeat Loop (Foot)</div>
+				<div class="draggable-item" draggable="true" data-type="subprogram">Subprogram</div>
+				<div class="draggable-item" draggable="true" data-type="exit">Exit</div>
+			</div>
+			<div class="actions">
+				<button id="export-btn" class="btn primary">Export Mermaid</button>
+				<button id="save-btn" class="btn secondary">Save</button>
+			</div>
+		</aside>
+		<main class="editor-area">
+			<div id="canvas" class="canvas">
+				<!-- Diagram will be rendered here -->
+				<div class="drop-zone initial-zone" data-id="root">
+					<p>Drag blocks here to start</p>
+				</div>
+			</div>
+			<div class="output-area">
+				<h3>Mermaid Output</h3>
+				<pre id="mermaid-output"></pre>
+			</div>
+		</main>
+	</div>
+	<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
