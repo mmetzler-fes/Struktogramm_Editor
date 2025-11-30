@@ -115,7 +115,7 @@ def build_structure(G, current_node, stop_node, visited):
     blocks = []
     while current_node and current_node != stop_node:
         if current_node in visited:
-            blocks.append({'type': 'process', 'label': f'Loop back to {G.nodes[current_node].get("label", current_node)}'})
+            # Loop back detected, stop processing this path
             break
         
         visited.add(current_node)
@@ -127,7 +127,10 @@ def build_structure(G, current_node, stop_node, visited):
             # Check if it's a loop (Head) or Decision
             node_type = G.nodes[current_node].get('type', 'process')
             
-            if node_type == 'loop':
+            # Since we switched to (["..."]) for loops (stadium shape), they are parsed as 'terminal'.
+            # Start/End are also terminal but usually have 1 or 0 successors.
+            # So a terminal node with 2 successors is likely a loop.
+            if node_type == 'loop' or node_type == 'terminal':
                 # Identify Body vs Exit
                 # My generator: Body edge has no label (or empty), Exit edge has "Exit".
                 edge1 = G.get_edge_data(current_node, successors[0])

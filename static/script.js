@@ -415,25 +415,66 @@ document.addEventListener('DOMContentLoaded', () => {
 		return el;
 	}
 
-	// Save Button
+	// Save Button (Download JSON)
 	document.getElementById('save-btn').addEventListener('click', () => {
-		fetch('/api/save', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(graphState),
-		})
-			.then(response => response.json())
-			.then(data => {
-				alert('Diagram saved! (Check server console)');
-			})
-			.catch((error) => {
-				console.error('Error:', error);
-			});
+		const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(graphState, null, 2));
+		const downloadAnchorNode = document.createElement('a');
+		downloadAnchorNode.setAttribute("href", dataStr);
+		downloadAnchorNode.setAttribute("download", "struktogramm.json");
+		document.body.appendChild(downloadAnchorNode); // required for firefox
+		downloadAnchorNode.click();
+		downloadAnchorNode.remove();
 	});
 
-	// Export Button
+	// Load Button (Trigger File Input)
+	document.getElementById('load-btn').addEventListener('click', () => {
+		document.getElementById('load-file-input').click();
+	});
+
+	// Handle File Selection
+	document.getElementById('load-file-input').addEventListener('change', (event) => {
+		const file = event.target.files[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			try {
+				const content = e.target.result;
+				const data = JSON.parse(content);
+
+				// Basic validation
+				if (!data.nodes || !data.edges) {
+					throw new Error("Invalid file format: Missing nodes or edges.");
+				}
+
+				// Update graph state
+				graphState = data;
+				renderDiagram();
+				alert('Diagram loaded successfully!');
+			} catch (error) {
+				console.error('Error loading file:', error);
+				alert('Error loading file: ' + error.message);
+			}
+		};
+		reader.readAsText(file);
+
+		// Reset input so the same file can be selected again if needed
+		event.target.value = '';
+	});
+
+	// Save Mermaid Button (Download .mmd)
+	document.getElementById('save-mermaid-btn').addEventListener('click', () => {
+		const mermaidCode = generateMermaid();
+		const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(mermaidCode);
+		const downloadAnchorNode = document.createElement('a');
+		downloadAnchorNode.setAttribute("href", dataStr);
+		downloadAnchorNode.setAttribute("download", "diagram.mmd");
+		document.body.appendChild(downloadAnchorNode); // required for firefox
+		downloadAnchorNode.click();
+		downloadAnchorNode.remove();
+	});
+
+	// Export Button (Copy to Clipboard)
 	document.getElementById('export-btn').addEventListener('click', () => {
 		const mermaidCode = generateMermaid();
 		navigator.clipboard.writeText(mermaidCode).then(() => {
@@ -570,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (node.type === 'start') code += `${node.id}([Start])\n`;
 			else if (node.type === 'end') code += `${node.id}([End])\n`;
 			else if (node.type === 'if_else') code += `${node.id}{"${label}"}\n`;
-			else if (['for_loop', 'while_loop', 'repeat_loop'].includes(node.type)) code += `${node.id}(("${label}"))\n`;
+			else if (['for_loop', 'while_loop', 'repeat_loop'].includes(node.type)) code += `${node.id}(["${label}"])\n`;
 			else code += `${node.id}["${label}"]\n`;
 		});
 
