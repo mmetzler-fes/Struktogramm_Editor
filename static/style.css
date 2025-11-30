@@ -288,6 +288,87 @@ body {
 	border: 1px dashed var(--primary-color);
 }
 
+/* Insertion Drop Zones */
+.insertion-drop-zone {
+	height: 10px;
+	/* Small hit area */
+	background-color: transparent;
+	transition: all 0.2s ease;
+	margin: 2px 0;
+	border-radius: 4px;
+	position: relative;
+}
+
+/* Expand hit area without taking up space */
+.insertion-drop-zone::after {
+	content: '';
+	position: absolute;
+	top: -5px;
+	left: 0;
+	right: 0;
+	bottom: -5px;
+	z-index: 10;
+}
+
+.insertion-drop-zone.active {
+	height: 40px;
+	/* Expand to look like a node */
+	background-color: rgba(59, 130, 246, 0.1);
+	border: 2px dashed var(--primary-color);
+	margin: 5px 0;
+}
+
+.insertion-drop-zone.active::before {
+	content: 'Insert Here';
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	color: var(--primary-color);
+	font-size: 0.8em;
+	font-weight: 500;
+}
+
+/* Initial Zone Override */
+.insertion-drop-zone.initial-zone {
+	height: 200px;
+	background-color: #f8fafc;
+	border: 2px dashed #cbd5e1;
+	opacity: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #94a3b8;
+}
+
+.insertion-drop-zone.initial-zone.active {
+	background-color: rgba(59, 130, 246, 0.1);
+	border-color: var(--primary-color);
+}
+
+.insertion-drop-zone.initial-zone.active::before {
+	content: 'Drop to Start';
+}
+
+.insertion-drop-zone.empty-container-zone {
+	flex: 1;
+	min-height: 40px;
+	background-color: #f8fafc;
+	border: 2px dashed #e2e8f0;
+	opacity: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #94a3b8;
+	margin: 5px;
+	border-radius: 4px;
+}
+
+.insertion-drop-zone.empty-container-zone.active {
+	background-color: rgba(59, 130, 246, 0.1);
+	border-color: var(--primary-color);
+}
+
 .menu-item:hover {
 	background-color: #f1f5f9;
 }

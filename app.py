@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+import json
+from converter import convert_mermaid_to_nsd
 
 app = Flask(__name__)
 
@@ -9,10 +11,22 @@ def index():
 @app.route('/api/save', methods=['POST'])
 def save_diagram():
     data = request.json
-    # In a real app, we would save this to a database or file
-    # For now, we just echo it back or log it
-    print("Received diagram data:", data)
-    return jsonify({"status": "success", "message": "Diagram saved successfully"})
+    print("Received diagram data:", json.dumps(data, indent=2))
+    # Here you would typically save to a database or file
+    return jsonify({"status": "success", "message": "Diagram saved (logged to console)"})
+
+@app.route('/api/convert_nsd', methods=['POST'])
+def convert_nsd():
+    data = request.json
+    mermaid_code = data.get('mermaid')
+    if not mermaid_code:
+        return jsonify({"error": "No mermaid code provided"}), 400
+    
+    try:
+        svg_output = convert_mermaid_to_nsd(mermaid_code)
+        return jsonify({"svg": svg_output})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/load', methods=['GET'])
 def load_diagram():
