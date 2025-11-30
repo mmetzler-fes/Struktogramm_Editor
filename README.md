@@ -12,7 +12,7 @@ I have successfully created a Flask-based Nassi-Shneiderman Diagram (NSD) editor
 ### 2. Supported Blocks
 - **Command**: Simple rectangular block for instructions.
 - **If / Else**: Branching block with "Ja" (True) and "Nein" (False) paths. Visualized with a V-shape header.
-- **For Loop**: Iteration block (Head-controlled) with a left indentation column (L-shape). Control structure is gray, content is white. The L-shape is continuous (no border cutting through).
+- **For Loop**: Iteration block (Head-controlled) with a left indentation column (L-shape). Control structure is gray, content is white. The L-shape is continuous.
 - **While Loop**: Conditional loop (Head-controlled) with a left indentation column (L-shape). Control structure is gray, content is white. The L-shape is continuous.
 - **Repeat Loop**: Conditional loop (Foot-controlled) with a left indentation column (L-shape). Control structure is gray, content is white. The L-shape is continuous.
 - **Subprogram**: Block representing a function call with double vertical lines.
@@ -20,6 +20,7 @@ I have successfully created a Flask-based Nassi-Shneiderman Diagram (NSD) editor
 
 ### 3. Block Management
 - **Layout**: Blocks automatically expand to fit their content and children.
+- **Dynamic Width**: The diagram width automatically increases with nesting depth (loops and branches), ensuring that deeply nested structures are not squashed.
 - **Delete**: Right-click on any block to open a context menu and delete it.
 
 ### 4. Mermaid Export
@@ -42,20 +43,6 @@ I have successfully created a Flask-based Nassi-Shneiderman Diagram (NSD) editor
     python3 app.py
     ```
 3.  Open your browser and go to `http://localhost:5000`.
-
-## Verification Results
-
-### Manual Verification Checklist
-- [x] **Drag & Drop**: Verified logic for dragging all types to root and nested zones.
-- [x] **Rendering**: Verified CSS classes for all block types.
-- [x] **If/Else Visual**: Verified V-shape SVG and "Ja"/"Nein" labels.
-- [x] **Loop Visual**: Verified "L-shape" layout with left indentation column.
-- [x] **Loop Colors**: Verified gray background for headers/spacers and white for content.
-- [x] **Loop Borders**: Verified that the border between header and spacer is removed, creating a continuous L-shape.
-- [x] **Mermaid Generation**: Verified the graph traversal logic in `script.js` to produce valid Mermaid syntax.
-- [x] **Save API**: Verified the `fetch` call and backend route.
-- [x] **Layout**: Verified that parent blocks expand when children are added.
-- [x] **Delete**: Verified that right-clicking a block shows the context menu and clicking "Delete Block" removes it.
 
 ## Windows Executable Generation
 

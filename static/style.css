@@ -126,6 +126,7 @@ body {
 	width: fit-content;
 	/* Allow growing */
 	border: 1px solid var(--block-border);
+	background-color: white;
 }
 
 .drop-zone {
@@ -207,15 +208,16 @@ body {
 	width: 30px;
 	border-right: 1px solid var(--block-border);
 	flex-shrink: 0;
+	/* Never shrink */
 	background-color: #e2e8f0;
-	/* Match header color */
 }
 
 .loop-content {
-	flex: 1;
+	flex: 1 0 auto;
+	/* Grow, don't shrink */
 	display: flex;
 	flex-direction: column;
-	width: 100%;
+	width: auto;
 	background-color: #fff;
 }
 
@@ -255,14 +257,18 @@ body {
 
 .block-if-body {
 	display: flex;
+	width: 100%;
 }
 
 .block-if-branch {
-	flex: 1;
+	flex: 1 0 auto;
+	/* Grow, don't shrink */
 	border-right: 1px solid var(--block-border);
 	min-height: 50px;
 	display: flex;
 	flex-direction: column;
+	min-width: 150px;
+	/* Ensure branches have some width */
 }
 
 .block-if-branch:last-child {
