@@ -371,4 +371,78 @@ body {
 
 .menu-item:hover {
 	background-color: #f1f5f9;
+}/* Case Block Styles */
+.block-case {
+	display: flex;
+	flex-direction: column;
+	border-bottom: 1px solid var(--block-border);
+	width: 100%;
+}
+
+.block-case-header {
+	position: relative;
+	height: 80px;
+	border-bottom: 1px solid var(--block-border);
+}
+
+.case-svg {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.block-case-body {
+	display: flex;
+	width: 100%;
+}
+
+.block-case-branch {
+	flex: 1 0 auto;
+	border-right: 1px solid var(--block-border);
+	min-height: 50px;
+	display: flex;
+	flex-direction: column;
+	min-width: 100px;
+	position: relative;
+}
+
+.block-case-branch:last-child {
+	border-right: none;
+}
+
+.case-label {
+	position: absolute;
+	bottom: 5px;
+	width: 100%;
+	text-align: center;
+	font-size: 0.8em;
+	pointer-events: auto;
+	/* Allow clicking on label to edit */
+	cursor: text;
+}
+
+/* Context Menu */
+.context-menu {
+	position: absolute;
+	background-color: white;
+	border: 1px solid #ccc;
+	box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+	z-index: 10000;
+	min-width: 150px;
+	border-radius: 4px;
+	padding: 5px 0;
+}
+
+.context-menu-item {
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 14px;
+	color: #333;
+}
+
+.context-menu-item:hover {
+	background-color: #f0f0f0;
 }

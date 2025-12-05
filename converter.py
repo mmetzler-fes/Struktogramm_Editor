@@ -40,7 +40,7 @@ def parse_mermaid(content):
     
     for line in lines:
         line = line.strip()
-        if not line or line.startswith('graph') or line.startswith('%%') or line.startswith('subgraph'):
+        if not line or line.startswith('graph') or line.startswith('flowchart') or line.startswith('classDef') or line.startswith('%%') or line.startswith('subgraph'):
             continue
             
         if '-->' in line:
@@ -124,15 +124,14 @@ def build_structure(G, current_node, stop_node, visited):
         successors = list(G.successors(current_node))
         
         if len(successors) == 2:
-            # Check if it's a loop (Head) or Decision
-            node_type = G.nodes[current_node].get('type', 'process')
+            # Check if it's a loop (Head) or Decision or Case (with 2 options)
+            node_data = G.nodes[current_node]
+            node_type = node_data.get('type', 'process')
             
+            # 1. Check for Loop
             # Since we switched to (["..."]) for loops (stadium shape), they are parsed as 'terminal'.
-            # Start/End are also terminal but usually have 1 or 0 successors.
-            # So a terminal node with 2 successors is likely a loop.
             if node_type == 'loop' or node_type == 'terminal':
                 # Identify Body vs Exit
-                # My generator: Body edge has no label (or empty), Exit edge has "Exit".
                 edge1 = G.get_edge_data(current_node, successors[0])
                 label1 = edge1.get('label', '').lower()
                 
@@ -144,7 +143,6 @@ def build_structure(G, current_node, stop_node, visited):
                     exit_node = successors[1]
                 
                 # Build Body
-                # The body stops when it loops back to current_node
                 body_blocks = build_structure(G, body_start_node, current_node, visited.copy())
                 
                 blocks.append({
@@ -152,30 +150,113 @@ def build_structure(G, current_node, stop_node, visited):
                     'label': label,
                     'children': body_blocks
                 })
-                
                 current_node = exit_node
+                
             else:
-                # Existing Decision Logic
-                merge_node = find_merge_node(G, successors[0], successors[1], current_node)
+                # 2. Check for Standard Decision (Yes/No)
                 edge1 = G.get_edge_data(current_node, successors[0])
+                edge2 = G.get_edge_data(current_node, successors[1])
                 label1 = edge1.get('label', '').lower()
+                label2 = edge2.get('label', '').lower()
                 
+                is_standard_decision = False
                 if 'ja' in label1 or 'yes' in label1 or 'true' in label1:
-                    yes_node = successors[0]; no_node = successors[1]
+                     is_standard_decision = True
+                elif 'nein' in label1 or 'no' in label1 or 'false' in label1:
+                     is_standard_decision = True
+                     
+                if is_standard_decision:
+                    # Treat as If/Else Decision
+                    merge_node = find_merge_node(G, successors[0], successors[1], current_node)
+                    
+                    if 'ja' in label1 or 'yes' in label1 or 'true' in label1:
+                        yes_node = successors[0]; no_node = successors[1]
+                    else:
+                        yes_node = successors[1]; no_node = successors[0]
+                    
+                    yes_block = build_structure(G, yes_node, merge_node, visited.copy())
+                    no_block = build_structure(G, no_node, merge_node, visited.copy())
+                    
+                    blocks.append({
+                        'type': 'decision',
+                        'label': label,
+                        'yes': yes_block,
+                        'no': no_block
+                    })
+                    current_node = merge_node
                 else:
-                    yes_node = successors[1]; no_node = successors[0]
-                
-                yes_block = build_structure(G, yes_node, merge_node, visited.copy())
-                no_block = build_structure(G, no_node, merge_node, visited.copy())
-                
-                blocks.append({
-                    'type': 'decision',
-                    'label': label,
-                    'yes': yes_block,
-                    'no': no_block
-                })
-                current_node = merge_node
+                    # 3. Fallback: Treat as Case with 2 branches
+                    # This happens if labels are like "1", "default", etc.
+                    # We utilize the general N-branch logic below by NOT advancing here.
+                    # We just change the flow to fall through to the elif len >= 2 block?
+                    # No, we must handle it or restructure the if/elif.
+                    
+                    # Let's handle it here to avoid complex flow control.
+                    merge_node = find_merge_node(G, successors[0], successors[1], current_node)
+                    
+                    if not merge_node:
+                         # Should not happen
+                         current_node = successors[0] 
+                    else:
+                        branches = []
+                        for succ in successors:
+                            edge = G.get_edge_data(current_node, succ)
+                            b_label = edge.get('label', '')
+                            b_blocks = build_structure(G, succ, merge_node, visited.copy())
+                            branches.append({
+                                'label': b_label,
+                                'children': b_blocks
+                            })
+                            
+                        blocks.append({
+                            'type': 'case',
+                            'label': label,
+                            'branches': branches
+                        })
+                        current_node = merge_node
             
+        elif len(successors) >= 2:
+             # Case Statement Handling (General Branching)
+             # If it wasn't caught as loop or simple decision above...
+             # Actually, simple decision logic (len=2) is handled above. 
+             # But if len > 2, it falls here.
+             # ALSO, if len=2 but labels are not yes/no, it might be a Case with 2 options.
+             
+             # Identify Merge Node for N branches
+             # Heuristic: Find common successor of all branches.
+             # Or iteratively find merge of B1 and B2, then Res and B3...
+             
+             # Start with finding merge of first two
+             merge_node = find_merge_node(G, successors[0], successors[1], current_node)
+             for i in range(2, len(successors)):
+                 if not merge_node: break
+                 merge_node = find_merge_node(G, merge_node, successors[i], current_node)
+                 
+             if not merge_node:
+                 # Fallback: Treat as individual paths (shouldn't happen in structured graph)
+                 print(f"Warning: No merge node found for Case {label}")
+                 blocks.append({'type': 'process', 'label': label})
+                 current_node = successors[0]
+                 continue
+                 
+             branches = []
+             for succ in successors:
+                 edge = G.get_edge_data(current_node, succ)
+                 b_label = edge.get('label', '')
+                 b_blocks = build_structure(G, succ, merge_node, visited.copy())
+                 branches.append({
+                     'label': b_label,
+                     'children': b_blocks
+                 })
+                 
+             blocks.append({
+                 'type': 'case',
+                 'label': label,
+                 'branches': branches
+             })
+             
+             current_node = merge_node
+
         elif len(successors) == 1:
             
             # Skip empty/dummy nodes
@@ -271,10 +352,26 @@ def calculate_min_widths(blocks):
             block['yes_min_width'] = yes_width
             block['no_min_width'] = no_width
 
+        elif block['type'] == 'case':
+            total_b_width = 0
+            for branch in block['branches']:
+                 b_w = calculate_min_widths(branch['children'])
+                 # Branch needs to fit its label
+                 b_text_w = len(branch['label']) * CHAR_WIDTH_AVG + PADDING_X * 2
+                 branch['min_width'] = max(b_w, b_text_w)
+                 total_b_width += branch['min_width']
+            
+            text_width = len(block['label']) * CHAR_WIDTH_AVG + PADDING_X * 2
+            block['min_width'] = max(total_b_width, text_width)
+            
         elif block['type'] == 'loop':
             children_width = calculate_min_widths(block['children'])
             # Loop needs spacer + children
             block['min_width'] = max(text_width, children_width + 30) # 30 is spacer
+            
+        else:
+            # Fallback for unknown types (e.g. terminal)
+            block['min_width'] = max(text_width, MIN_BLOCK_WIDTH)
             
         max_width = max(max_width, block['min_width'])
         
@@ -322,6 +419,35 @@ def calculate_heights(blocks, width):
             
             total_h += block['height']
 
+        elif block['type'] == 'case':
+            # Case Logic
+            # Distribute width proportionally to min_width
+            total_min = sum(b['min_width'] for b in block['branches'])
+            if total_min == 0: total_min = 1
+            
+            current_x = 0
+            max_content_h = 0
+            
+            for branch in block['branches']:
+                # Calculate assigned width
+                ratio = branch['min_width'] / total_min
+                b_width = width * ratio
+                branch['width'] = b_width
+                
+                # Calculate height of children
+                h = calculate_heights(branch['children'], b_width)
+                max_content_h = max(max_content_h, h)
+                
+            header_height = max(40, text_height + 20)
+            
+            block['height'] = header_height + max_content_h
+            block['header_height'] = header_height
+            block['content_height'] = max_content_h
+            
+            block['content_height'] = max_content_h
+            
+            total_h += block['height']
+            
         elif block['type'] == 'loop':
             # Loop has a spacer (30px) and content
             spacer_width = 30
@@ -396,6 +522,77 @@ def render_blocks(blocks, x, y, width):
             if no_content_h < content_h:
                 svg += f'<rect x="{x + yes_w}" y="{current_y + header_h + no_content_h}" width="{no_w}" height="{content_h - no_content_h}" fill="white" stroke="black" stroke-width="1"/>'
                 
+            current_y += header_h + content_h
+
+        elif block['type'] == 'case':
+            header_h = block['header_height']
+            content_h = block['content_height']
+            
+            # Render Header
+            svg += f'<rect x="{x}" y="{current_y}" width="{width}" height="{header_h}" fill="white" stroke="black" stroke-width="1"/>'
+            
+            # Geometry for Fan
+            branches = block['branches']
+            n_branches = len(branches)
+            split_y_ratio = 0.6
+            split_y_px = header_h * split_y_ratio
+            
+            # Label (Top Center)
+            svg += f'<text x="{x + width/2}" y="{current_y + split_y_px/2 + 5}" text-anchor="middle" font-size="{FONT_SIZE}" font-family="Arial, sans-serif">{html.escape(block["label"])}</text>'
+            
+            current_x = x
+            
+            # Calculate segments
+            # First pass: Get exact x positions
+            
+            # Draw lines
+            # Left Diagonal: (x, y) -> top-right of first branch label area
+            branch0_w = branches[0]['width']
+            p1_x = x + branch0_w
+            
+            svg += f'<line x1="{x}" y1="{current_y}" x2="{p1_x}" y2="{current_y + split_y_px}" stroke="black" stroke-width="1"/>'
+            
+            # Right Diagonal: (x+width, y) -> top-left of last branch label area (or right of N-2)
+            # Actually, standard visual is diagonals to the outer separators.
+            # Mirroring JS implementation:
+            # Diagonals connect corners to the SplitY line.
+            
+            # Render Branches and Header Parts
+            render_x = x
+            
+            for i, branch in enumerate(branches):
+                b_width = branch['width']
+                
+                # Branch Label
+                label_center_x = render_x + b_width / 2
+                svg += f'<text x="{label_center_x}" y="{current_y + header_h - 5}" text-anchor="middle" font-size="12" font-family="Arial, sans-serif">{html.escape(branch["label"])}</text>'
+                
+                # Vertical Separator (except for last one)
+                if i < n_branches:
+                     # Line from splitY to bottom of header
+                     sep_x = render_x + b_width
+                     if i < n_branches - 1:
+                         svg += f'<line x1="{sep_x}" y1="{current_y + split_y_px}" x2="{sep_x}" y2="{current_y + header_h}" stroke="black" stroke-width="1"/>'
+                
+                # Render Block Content
+                svg += render_blocks(branch['children'], render_x, current_y + header_h, b_width)
+                
+                # Fill Empty Space
+                b_content_h = sum(b['height'] for b in branch['children'])
+                if b_content_h < content_h:
+                    svg += f'<rect x="{render_x}" y="{current_y + header_h + b_content_h}" width="{b_width}" height="{content_h - b_content_h}" fill="white" stroke="black" stroke-width="1"/>'
+                
+                render_x += b_width
+
+            # Right Diagonal
+            last_branch_w = branches[-1]['width']
+            p2_x = x + width - last_branch_w
+            svg += f'<line x1="{x + width}" y1="{current_y}" x2="{p2_x}" y2="{current_y + split_y_px}" stroke="black" stroke-width="1"/>'
+
+            # Middle Line (if needed)
+            if n_branches > 2:
+                 svg += f'<line x1="{p1_x}" y1="{current_y + split_y_px}" x2="{p2_x}" y2="{current_y + split_y_px}" stroke="black" stroke-width="1"/>'
+
             current_y += header_h + content_h
 
         elif block['type'] == 'loop':

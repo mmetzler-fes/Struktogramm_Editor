@@ -21,6 +21,7 @@
 				<div class="draggable-item" draggable="true" data-type="while_loop">While Loop (Head)</div>
 				<div class="draggable-item" draggable="true" data-type="repeat_loop">Repeat Loop (Foot)</div>
 				<div class="draggable-item" draggable="true" data-type="subprogram">Subprogram</div>
+				<div class="draggable-item" draggable="true" data-type="case">Case</div>
 				<div class="draggable-item" draggable="true" data-type="exit">Exit</div>
 			</div>
 			<div class="toolbar">
@@ -61,7 +62,12 @@
 	</div>
 	<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 	<script>
-		mermaid.initialize({ startOnLoad: false });
+		mermaid.initialize({
+			startOnLoad: false,
+			theme: 'neutral',
+			flowchart: { htmlLabels: false },
+			htmlLabels: false
+		});
 	</script>
 	<script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
