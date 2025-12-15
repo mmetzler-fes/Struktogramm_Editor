@@ -1023,8 +1023,8 @@ document.addEventListener('DOMContentLoaded', () => {
 						type: node.type,
 						id: node.id,
 						text: node.text,
-						children: bodyBlocks,
-						exitId: exitId // Store exit node ID
+						children: bodyBlocks
+						// exitId: exitId // REMOVED: Loop exit is the loop node itself branching out
 					});
 
 					currentNodeId = exitId;
