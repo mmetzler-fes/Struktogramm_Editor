@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv/
+
+# Distribution / Checkouts
+build/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+var/
+*.log
+
+# PyInstaller
+*.spec
+# (User might want to keep the spec file if they customized it, which they did in previous turns. So I will NOT ignore .spec unless generic. The user lists `struktogramm_editor.spec` in open files and used it. I should keep `.spec`.)
+
+# IDE
+.idea/
+.vscode/
+*.swp
