@@ -266,6 +266,11 @@ document.addEventListener('DOMContentLoaded', () => {
 			renderTree(tree, container, 'start_node_id', 'end_node_id');
 			canvas.appendChild(container);
 			updateMermaid();
+
+			// Update all If/Else blocks after rendering
+			setTimeout(() => {
+				updateAllIfElseBlocks();
+			}, 100);
 		} catch (e) {
 			console.error(e);
 			canvas.innerHTML = `<div style="color:red; padding:20px;">Error rendering diagram: ${e.message}<br><pre>${e.stack}</pre></div>`;
@@ -311,10 +316,25 @@ document.addEventListener('DOMContentLoaded', () => {
 			svg.setAttribute("class", "if-svg");
 			svg.setAttribute("viewBox", "0 0 100 100");
 			svg.setAttribute("preserveAspectRatio", "none");
-			svg.innerHTML = `
-                <line x1="0" y1="0" x2="50" y2="100" stroke="black" stroke-width="1" />
-                <line x1="100" y1="0" x2="50" y2="100" stroke="black" stroke-width="1" />
-            `;
+			// Create left diagonal line
+			const leftLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+			leftLine.setAttribute("x1", "0");
+			leftLine.setAttribute("y1", "0");
+			leftLine.setAttribute("x2", "50"); // Will be updated dynamically
+			leftLine.setAttribute("y2", "100");
+			leftLine.setAttribute("stroke", "black");
+			leftLine.setAttribute("stroke-width", "1");
+			svg.appendChild(leftLine);
+
+			// Create right diagonal line
+			const rightLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+			rightLine.setAttribute("x1", "100");
+			rightLine.setAttribute("y1", "0");
+			rightLine.setAttribute("x2", "50"); // Will be updated dynamically
+			rightLine.setAttribute("y2", "100");
+			rightLine.setAttribute("stroke", "black");
+			rightLine.setAttribute("stroke-width", "1");
+			svg.appendChild(rightLine);
 			header.appendChild(svg);
 
 			const textContainer = document.createElement('div');
@@ -396,6 +416,11 @@ document.addEventListener('DOMContentLoaded', () => {
 			});
 
 			el.appendChild(body);
+
+			// Observer for resizing lines
+			setTimeout(() => {
+				observeIfResize(el, header, body);
+			}, 0);
 		}
 		else if (['for_loop', 'while_loop', 'repeat_loop'].includes(block.type)) {
 			const isFootControlled = block.type === 'repeat_loop';
@@ -1464,6 +1489,109 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	renderDiagram();
 });
+// Global function to update all If/Else blocks
+function updateAllIfElseBlocks() {
+	const allIfBlocks = document.querySelectorAll('.block-if');
+	console.log('[UPDATE-ALL] Found', allIfBlocks.length, 'If/Else blocks');
+
+	allIfBlocks.forEach(blockEl => {
+		const header = blockEl.querySelector('.block-if-header');
+		const body = blockEl.querySelector('.block-if-body');
+		const svg = header?.querySelector('.if-svg');
+
+		if (!svg || !body || !header) return;
+
+		const totalWidth = body.offsetWidth;
+		if (totalWidth === 0) return;
+
+		// Get only DIRECT child branches (not nested ones)
+		const branches = Array.from(body.children).filter(child => child.classList.contains('block-if-branch'));
+		if (branches.length !== 2) return;
+
+		const trueBranchWidth = branches[0].offsetWidth;
+		const centerPercent = (trueBranchWidth / totalWidth) * 100;
+
+		console.log('[UPDATE-ALL] Block width:', totalWidth, 'True:', trueBranchWidth, 'Center:', centerPercent);
+
+		const lines = Array.from(svg.querySelectorAll('line'));
+		const leftLine = lines.find(l => l.getAttribute('x1') === "0" && l.getAttribute('y1') === "0");
+		const rightLine = lines.find(l => l.getAttribute('x1') === "100" && l.getAttribute('y1') === "0");
+
+		if (leftLine) {
+			leftLine.setAttribute("x2", centerPercent);
+		}
+		if (rightLine) {
+			rightLine.setAttribute("x2", centerPercent);
+		}
+	});
+}
+
+function observeIfResize(container, header, body) {
+	const svg = header.querySelector('.if-svg');
+	if (!svg) {
+		console.log('[IF-RESIZE] No SVG found');
+		return;
+	}
+
+	const updateLines = () => {
+		if (!body || !header) {
+			console.log('[IF-RESIZE] No body or header');
+			return;
+		}
+		const totalWidth = body.offsetWidth;
+		if (totalWidth === 0) {
+			console.log('[IF-RESIZE] Total width is 0');
+			return;
+		}
+
+		// Get only DIRECT child branches (not nested ones)
+		const branches = Array.from(body.children).filter(child => child.classList.contains('block-if-branch'));
+		if (branches.length !== 2) {
+			console.log('[IF-RESIZE] Branch count is not 2:', branches.length);
+			return;
+		}
+
+		const trueBranch = branches[0];
+		const falseBranch = branches[1];
+		const trueBranchWidth = trueBranch.offsetWidth;
+		const falseBranchWidth = falseBranch.offsetWidth;
+
+		// Calculate the percentage where the branches meet (center of the junction)
+		const centerPercent = (trueBranchWidth / totalWidth) * 100;
+
+		console.log('[IF-RESIZE] Total width:', totalWidth, 'True:', trueBranchWidth, 'False:', falseBranchWidth, 'Center%:', centerPercent);
+
+		// Get the two diagonal lines
+		const lines = Array.from(svg.querySelectorAll('line'));
+		const leftLine = lines.find(l => l.getAttribute('x1') === "0" && l.getAttribute('y1') === "0");
+		const rightLine = lines.find(l => l.getAttribute('x1') === "100" && l.getAttribute('y1') === "0");
+
+		console.log('[IF-RESIZE] Left line found:', !!leftLine, 'Right line found:', !!rightLine);
+
+		// Update both lines to meet at the center of the branch junction
+		if (leftLine) {
+			leftLine.setAttribute("x2", centerPercent);
+			console.log('[IF-RESIZE] Updated left line x2 to:', centerPercent);
+		}
+		if (rightLine) {
+			rightLine.setAttribute("x2", centerPercent);
+			console.log('[IF-RESIZE] Updated right line x2 to:', centerPercent);
+		}
+	};
+
+	console.log('[IF-RESIZE] Setting up observer');
+	const observer = new ResizeObserver(updateLines);
+	observer.observe(body);
+
+	// Also observe all children for nested blocks
+	body.querySelectorAll('.block-if-branch').forEach(branch => {
+		observer.observe(branch);
+	});
+
+	// Initial update
+	setTimeout(updateLines, 50);
+}
+
 function observeCaseResize(container, header, body) {
 	const svg = header.querySelector('.case-svg');
 	if (!svg) return;
