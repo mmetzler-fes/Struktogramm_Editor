@@ -338,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			header.appendChild(svg);
 
 			const textContainer = document.createElement('div');
+			textContainer.className = 'if-condition-text';
 			textContainer.style.position = 'absolute';
 			textContainer.style.top = '10px';
 			textContainer.style.width = '100%';
@@ -1523,6 +1524,15 @@ function updateAllIfElseBlocks() {
 		if (rightLine) {
 			rightLine.setAttribute("x2", centerPercent);
 		}
+
+		// Update text position to be centered between block center (50%) and triangle intersection
+		const textContainer = header.querySelector('.if-condition-text');
+		if (textContainer) {
+			const textCenterPercent = (50 + centerPercent) / 2;
+			textContainer.style.left = textCenterPercent + '%';
+			textContainer.style.transform = 'translateX(-50%)';
+			textContainer.style.width = 'auto';
+		}
 	});
 }
 
@@ -1576,6 +1586,16 @@ function observeIfResize(container, header, body) {
 		if (rightLine) {
 			rightLine.setAttribute("x2", centerPercent);
 			console.log('[IF-RESIZE] Updated right line x2 to:', centerPercent);
+		}
+
+		// Update text position to be centered between block center (50%) and triangle intersection
+		const textContainer = header.querySelector('.if-condition-text');
+		if (textContainer) {
+			const textCenterPercent = (50 + centerPercent) / 2;
+			textContainer.style.left = textCenterPercent + '%';
+			textContainer.style.transform = 'translateX(-50%)';
+			textContainer.style.width = 'auto';
+			console.log('[IF-RESIZE] Updated text position to:', textCenterPercent + '%');
 		}
 	};
 
