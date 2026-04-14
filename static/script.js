@@ -200,6 +200,12 @@ document.addEventListener('DOMContentLoaded', () => {
 	function createInsertionDropZone(edgeIndex) {
 		const zone = document.createElement('div');
 		zone.className = 'insertion-drop-zone';
+		// Store edge endpoints so move mode can identify the target edge by value, not index
+		const edge = graphState.edges[edgeIndex];
+		if (edge) {
+			zone.dataset.edgeFrom = edge.from;
+			zone.dataset.edgeTo   = edge.to;
+		}
 		setupDropZone(zone, (type) => addBlock(type, edgeIndex));
 		return zone;
 	}
@@ -235,10 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (blocks.length === 0) {
 				if (predecessorId === 'start_node_id' && successorId === 'end_node_id') {
 					dropZone.classList.add('initial-zone');
-					dropZone.innerHTML = '<p>Drag blocks here to start</p>';
+					// Use data-placeholder so CSS ::before shows text without blocking drag events
+					dropZone.dataset.placeholder = 'Drag blocks here to start';
 				} else {
 					dropZone.classList.add('empty-container-zone');
-					dropZone.innerHTML = '<p>Drop here</p>';
+					// Use data-placeholder so CSS ::before shows text without blocking drag events
+					dropZone.dataset.placeholder = 'Drop here';
 				}
 			}
 
@@ -1174,7 +1182,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	contextMenu.style.boxShadow = '2px 2px 5px rgba(0,0,0,0.2)';
 	contextMenu.innerHTML = `
 		<div class="menu-item" id="cm-add-case" style="display:none; cursor: pointer; padding: 5px 10px;">Add Case</div>
-		<div class="menu-item" id="cm-delete" style="cursor: pointer; padding: 5px 10px;">Delete Block</div>
+		<div class="menu-item" id="cm-move"   style="cursor: pointer; padding: 5px 10px;">&#x2B0C; Move Block</div>
+		<div class="menu-item" id="cm-delete" style="cursor: pointer; padding: 5px 10px; color:#c0392b;">&#x1F5D1; Delete Block</div>
 	`;
 	document.body.appendChild(contextMenu);
 
@@ -1207,21 +1216,44 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	});
 
-	document.addEventListener('click', () => {
+	document.addEventListener('click', (e) => {
+		// Always hide the context menu on any click
 		contextMenu.style.display = 'none';
+
+		// Handle move-mode target clicks
+		if (moveSourceId) {
+			const zone = e.target.closest('.insertion-drop-zone');
+			if (zone && zone.dataset.edgeFrom && zone.dataset.edgeTo) {
+				e.stopPropagation();
+				moveBlock(moveSourceId, zone.dataset.edgeFrom, zone.dataset.edgeTo);
+			} else {
+				// Clicked somewhere else – cancel move
+				exitMoveMode();
+			}
+		}
 	});
 
-	document.getElementById('cm-delete').addEventListener('click', () => {
+	document.getElementById('cm-delete').addEventListener('click', (e) => {
+		e.stopPropagation();
 		if (currentBlockId) {
 			deleteBlock(currentBlockId);
 			contextMenu.style.display = 'none';
 		}
 	});
 
-	document.getElementById('cm-add-case').addEventListener('click', () => {
+	document.getElementById('cm-add-case').addEventListener('click', (e) => {
+		e.stopPropagation();
 		if (currentBlockId) {
 			addCaseOption(currentBlockId);
 			contextMenu.style.display = 'none';
+		}
+	});
+
+	document.getElementById('cm-move').addEventListener('click', (e) => {
+		if (currentBlockId) {
+			e.stopPropagation(); // Prevent document click handler from immediately cancelling move mode
+			contextMenu.style.display = 'none';
+			enterMoveMode(currentBlockId);
 		}
 	});
 
@@ -1489,6 +1521,182 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	renderDiagram();
+
+	// =====================================================================
+	// Move Block Logic
+	// =====================================================================
+
+	let moveSourceId = null;
+
+	/** Create the orange indicator banner element */
+	const moveIndicator = document.createElement('div');
+	moveIndicator.id = 'move-indicator';
+	document.body.appendChild(moveIndicator);
+
+	function enterMoveMode(blockId) {
+		moveSourceId = blockId;
+		document.body.classList.add('move-mode');
+
+		// Highlight the block being moved
+		document.querySelectorAll('.nsd-block').forEach(el => {
+			if (el.dataset.id === blockId) el.classList.add('move-source');
+		});
+
+		// Show banner
+		const node = graphState.nodes.find(n => n.id === blockId);
+		const label = node ? `"${node.text}"` : 'Block';
+		moveIndicator.textContent =
+			`\u{1F4CD} Move-Modus: ${label} — Zielposition anklicken  |  Esc = Abbrechen`;
+		moveIndicator.style.display = 'block';
+	}
+
+	function exitMoveMode() {
+		moveSourceId = null;
+		document.body.classList.remove('move-mode');
+		document.querySelectorAll('.move-source').forEach(el => el.classList.remove('move-source'));
+		moveIndicator.style.display = 'none';
+	}
+
+	/** Return all node IDs that logically belong to this block (itself + internal dummies). */
+	function getInternalNodes(blockId) {
+		const owned = [blockId];
+		graphState.nodes.forEach(n => {
+			if (n.id.startsWith(blockId + '_')) owned.push(n.id);
+		});
+		return owned;
+	}
+
+	/**
+	 * Returns { exitNodeId, externalSuccessorId } for a block:
+	 *   exitNodeId          – last internal node that connects to the outside world
+	 *   externalSuccessorId – the first node AFTER the whole block cluster
+	 */
+	function getBlockBounds(blockId) {
+		const node = graphState.nodes.find(n => n.id === blockId);
+		if (!node) return null;
+
+		const successors = getSuccessors(blockId);
+
+		if (['if_else', 'case'].includes(node.type)) {
+			let mergeId = null;
+			if (successors.length >= 2) {
+				mergeId = findMergeNode(successors[0], successors[1], blockId);
+			} else if (successors.length === 1) {
+				const ds = getSuccessors(successors[0]);
+				mergeId = ds.length > 0 ? ds[0] : null;
+			}
+			if (!mergeId) return null;
+			const ms = getSuccessors(mergeId);
+			return { exitNodeId: mergeId, externalSuccessorId: ms[0] || null };
+		}
+
+		if (['for_loop', 'while_loop', 'repeat_loop'].includes(node.type)) {
+			const exitSucc = successors.find(s =>
+				getEdgeLabel(blockId, s).toLowerCase().includes('exit'));
+			return { exitNodeId: blockId, externalSuccessorId: exitSucc || null };
+		}
+
+		// Simple block (command, subprogram, exit, process …)
+		return { exitNodeId: blockId, externalSuccessorId: successors[0] || null };
+	}
+
+	/**
+	 * Full move operation:
+	 *   1. Validate the target is not inside the block's own cluster.
+	 *   2. Extract the block from its current position (heal the gap).
+	 *   3. Insert the block at the target edge.
+	 */
+	function moveBlock(blockId, targetFrom, targetTo) {
+		const node = graphState.nodes.find(n => n.id === blockId);
+		if (!node) { exitMoveMode(); return; }
+
+		// ── Validate: target must not be inside the block's own cluster ──
+		const internalNodes = getInternalNodes(blockId);
+		if (internalNodes.includes(targetFrom) || internalNodes.includes(targetTo)) {
+			alert('Ein Block kann nicht in sich selbst verschoben werden.');
+			exitMoveMode();
+			return;
+		}
+
+		const bounds = getBlockBounds(blockId);
+		if (!bounds || !bounds.externalSuccessorId) {
+			console.error('Move: Block-Grenzen konnten nicht bestimmt werden', blockId);
+			exitMoveMode();
+			return;
+		}
+
+		const { exitNodeId, externalSuccessorId } = bounds;
+
+		// Get predecessor of this block
+		const predEdge = graphState.edges.find(e => e.to === blockId);
+		if (!predEdge) {
+			console.error('Move: Kein Vorgänger für Block', blockId);
+			exitMoveMode();
+			return;
+		}
+		const predecessorId    = predEdge.from;
+		const predecessorLabel = predEdge.label;
+
+		// ── Guard: already at target position ──
+		if (predecessorId === targetFrom && externalSuccessorId === targetTo) {
+			exitMoveMode();
+			return;
+		}
+
+		// ════════════════════════════════
+		// STEP 1 – Extract from current position
+		// ════════════════════════════════
+
+		// Remove pred → blockId
+		const predIdx = graphState.edges.findIndex(e => e.from === predecessorId && e.to === blockId);
+		if (predIdx !== -1) graphState.edges.splice(predIdx, 1);
+
+		// Remove exitNodeId → externalSuccessorId  (for loops: this carries the 'Exit' label)
+		const exitIdx = graphState.edges.findIndex(
+			e => e.from === exitNodeId && e.to === externalSuccessorId);
+		if (exitIdx !== -1) graphState.edges.splice(exitIdx, 1);
+
+		// Heal gap: predecessorId → externalSuccessorId
+		graphState.edges.push({ from: predecessorId, to: externalSuccessorId, label: predecessorLabel });
+
+		// ════════════════════════════════
+		// STEP 2 – Insert at target edge
+		// ════════════════════════════════
+
+		// The target edge may now be the healed edge (if the drop zone was between
+		// the same predecessor/successor). Re-resolve from the live graph.
+		const targetIdx = graphState.edges.findIndex(
+			e => e.from === targetFrom && e.to === targetTo);
+
+		if (targetIdx === -1) {
+			console.error('Move: Zielkante nach Extraktion nicht mehr vorhanden', targetFrom, '->', targetTo);
+			exitMoveMode();
+			renderDiagram();
+			return;
+		}
+
+		const targetLabel = graphState.edges[targetIdx].label;
+		graphState.edges.splice(targetIdx, 1);
+
+		// Insert: targetFrom → blockId  (inherit branch label, e.g. 'Ja'/'Nein')
+		graphState.edges.push({ from: targetFrom, to: blockId, label: targetLabel });
+
+		// Insert: exitNodeId → targetTo  (loops keep their 'Exit' label)
+		const newExitLabel = ['for_loop', 'while_loop', 'repeat_loop'].includes(node.type)
+			? 'Exit' : undefined;
+		graphState.edges.push({ from: exitNodeId, to: targetTo, label: newExitLabel });
+
+		exitMoveMode();
+		renderDiagram();
+	}
+
+	// Cancel move mode with Escape key
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && moveSourceId) {
+			exitMoveMode();
+		}
+	});
+
 });
 // Global function to update all If/Else blocks
 function updateAllIfElseBlocks() {
