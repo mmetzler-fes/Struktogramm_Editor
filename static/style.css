@@ -255,9 +255,33 @@ body {
 	/* Let clicks pass through to text */
 }
 
+/* Position condition text near the top of the IF header */
+.if-condition-text {
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	text-align: center;
+	padding: 5px 10px;
+	background-color: white;
+	z-index: 1;
+	max-width: 70%;
+	word-wrap: break-word;
+}
+
 .block-if-body {
 	display: flex;
 	width: 100%;
+}
+
+/* Labels for Ja/Nein branches */
+.if-branch-label {
+	padding: 5px;
+	text-align: center;
+	font-size: 0.9em;
+	font-weight: 500;
+	background-color: #f8fafc;
+	border-bottom: 1px solid var(--block-border);
 }
 
 .block-if-branch {
