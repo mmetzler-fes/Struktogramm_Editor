@@ -1487,6 +1487,216 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	});
 
+	// Save Button (Download JSON)
+	document.getElementById('save-btn').addEventListener('click', () => {
+		const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(graphState, null, 2));
+		const downloadAnchorNode = document.createElement('a');
+		downloadAnchorNode.setAttribute("href", dataStr);
+		downloadAnchorNode.setAttribute("download", "struktogramm.json");
+		document.body.appendChild(downloadAnchorNode);
+		downloadAnchorNode.click();
+		downloadAnchorNode.remove();
+	});
+
+	// Load Button (Trigger File Input)
+	document.getElementById('load-btn').addEventListener('click', () => {
+		document.getElementById('load-file-input').click();
+	});
+
+	// Handle File Selection
+	document.getElementById('load-file-input').addEventListener('change', (event) => {
+		const file = event.target.files[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			try {
+				const content = e.target.result;
+				const data = JSON.parse(content);
+
+				// Basic validation
+				if (!data.nodes || !data.edges) {
+					throw new Error("Invalid file format: Missing nodes or edges.");
+				}
+
+				// Update graph state
+				graphState.nodes = data.nodes;
+				graphState.edges = data.edges;
+				renderer.render();
+				alert('Diagram loaded successfully!');
+			} catch (error) {
+				console.error('Error loading file:', error);
+				alert('Error loading file: ' + error.message);
+			}
+		};
+		reader.readAsText(file);
+
+		// Reset input so the same file can be selected again if needed
+		event.target.value = '';
+	});
+
+	// Save Mermaid Button (Download .mmd)
+	document.getElementById('save-mermaid-btn').addEventListener('click', () => {
+		const mermaidCode = generateMermaid();
+		const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(mermaidCode);
+		const downloadAnchorNode = document.createElement('a');
+		downloadAnchorNode.setAttribute("href", dataStr);
+		downloadAnchorNode.setAttribute("download", "diagram.mmd");
+		document.body.appendChild(downloadAnchorNode);
+		downloadAnchorNode.click();
+		downloadAnchorNode.remove();
+	});
+
+	// Export Button (Copy to Clipboard)
+	document.getElementById('export-btn').addEventListener('click', () => {
+		const mermaidCode = generateMermaid();
+		navigator.clipboard.writeText(mermaidCode).then(() => {
+			alert('Mermaid code copied to clipboard!');
+		}).catch(err => {
+			console.error('Failed to copy:', err);
+			alert('Failed to copy to clipboard');
+		});
+	});
+
+	// Helper function to download SVG
+	function downloadSVG(svgContent, filename) {
+		const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
+	// Helper to open export modal
+	function openExportModal(title, svgContent, filename) {
+		const modal = document.getElementById('export-modal');
+		const titleEl = document.getElementById('export-title');
+		const previewEl = document.getElementById('export-preview');
+		const downloadBtn = document.getElementById('download-export-btn');
+
+		titleEl.textContent = title;
+		previewEl.innerHTML = svgContent;
+		modal.style.display = 'flex';
+
+		downloadBtn.onclick = () => {
+			downloadSVG(svgContent, filename);
+		};
+	}
+
+	// Close Export Modal
+	document.getElementById('close-export-btn').addEventListener('click', () => {
+		document.getElementById('export-modal').style.display = 'none';
+	});
+
+	// Export NSD SVG
+	document.getElementById('export-nsd-btn').addEventListener('click', () => {
+		const mermaidCode = generateMermaid();
+
+		const modal = document.getElementById('export-modal');
+		const preview = document.getElementById('export-preview');
+		document.getElementById('export-title').textContent = 'Struktogramm (NSD)';
+		preview.innerHTML = 'Generating...';
+		modal.style.display = 'flex';
+
+		fetch('/api/convert_nsd', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ mermaid: mermaidCode })
+		})
+			.then(response => response.json())
+			.then(data => {
+				if (data.svg) {
+					openExportModal('Struktogramm (NSD)', data.svg, 'struktogramm.svg');
+				} else {
+					preview.innerHTML = 'Error: ' + (data.error || 'Unknown error');
+				}
+			})
+			.catch(err => {
+				console.error(err);
+				preview.innerHTML = 'Error: ' + err;
+			});
+	});
+
+	// Export PAP SVG
+	document.getElementById('export-pap-btn').addEventListener('click', async () => {
+		const mermaidCode = generateMermaid();
+
+		const modal = document.getElementById('export-modal');
+		const preview = document.getElementById('export-preview');
+		document.getElementById('export-title').textContent = 'Programmablaufplan (PAP)';
+		preview.innerHTML = 'Generating...';
+		modal.style.display = 'flex';
+
+		try {
+			const id = 'mermaid-pap-' + Date.now();
+			let { svg } = await mermaid.render(id, mermaidCode);
+
+			const parser = new DOMParser();
+			const doc = parser.parseFromString(svg, "image/svg+xml");
+
+			doc.querySelectorAll('.node rect, .node polygon, .node circle, .node ellipse').forEach(el => {
+				el.setAttribute('fill', '#ffffff');
+				el.setAttribute('stroke', '#000000');
+				el.setAttribute('stroke-width', '1');
+				el.style.fill = '#ffffff';
+				el.style.stroke = '#000000';
+				el.style.strokeWidth = '1px';
+			});
+
+			doc.querySelectorAll('.edgePaths path').forEach(el => {
+				el.setAttribute('stroke', '#000000');
+				el.setAttribute('stroke-width', '1');
+				el.setAttribute('fill', 'none');
+				el.style.stroke = '#000000';
+				el.style.strokeWidth = '1px';
+				el.style.fill = 'none';
+			});
+
+			doc.querySelectorAll('marker path').forEach(el => {
+				el.setAttribute('fill', '#000000');
+				el.setAttribute('stroke', '#000000');
+				el.style.fill = '#000000';
+				el.style.stroke = '#000000';
+			});
+
+			doc.querySelectorAll('.edgeLabel rect').forEach(el => {
+				el.setAttribute('fill', '#ffffff');
+				el.setAttribute('stroke', 'none');
+				el.style.fill = '#ffffff';
+				el.style.stroke = 'none';
+			});
+
+			doc.querySelectorAll('text, tspan').forEach(el => {
+				el.setAttribute('fill', '#000000');
+				el.setAttribute('stroke', 'none');
+
+				if (el.style.textAnchor) {
+					el.setAttribute('text-anchor', el.style.textAnchor);
+				} else {
+					el.setAttribute('text-anchor', 'middle');
+				}
+
+				el.style.fill = '#000000';
+				el.style.stroke = 'none';
+				el.style.fontFamily = 'Arial, sans-serif';
+				el.style.fontSize = '';
+			});
+
+			doc.querySelectorAll('foreignObject').forEach(el => el.remove());
+
+			svg = new XMLSerializer().serializeToString(doc.documentElement);
+
+			openExportModal('Programmablaufplan (PAP)', svg, 'programmablaufplan.svg');
+		} catch (err) {
+			console.error('Mermaid render error:', err);
+			preview.innerHTML = 'Error rendering PAP: ' + err.message;
+		}
+	});
+
 	// Make blockManager and graphState globally accessible for updateMermaid function
 	window.editorState = {
 		graphState: graphState,
