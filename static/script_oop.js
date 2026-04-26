@@ -896,88 +896,10 @@ class BlockManager {
 	}
 
 	getInternalNodes(blockId) {
-		const node = this.graphState.getNode(blockId);
-		if (!node) return [blockId];
-
 		const owned = [blockId];
-		
-		// First add all direct dummy nodes (simple case)
 		this.graphState.nodes.forEach(n => {
-			if (n.id.startsWith(blockId + '_')) {
-				owned.push(n.id);
-			}
+			if (n.id.startsWith(blockId + '_')) owned.push(n.id);
 		});
-
-		// For complex blocks (loops, if-else, case), we need to find ALL internal nodes
-		// by traversing from blockId to its exit point
-		const bounds = this.getBlockBounds(blockId);
-		if (bounds && bounds.exitNodeId && bounds.externalSuccessorId) {
-			const { exitNodeId, externalSuccessorId } = bounds;
-			
-			// Special handling for loops: exitNodeId is the loop itself
-			// We need to traverse the loop body
-			if (['for_loop', 'while_loop', 'repeat_loop'].includes(node.type)) {
-				// Find the body start (the non-exit successor)
-				const successors = this.graphState.getSuccessors(blockId);
-				const bodyStartId = successors.find(s => 
-					!this.graphState.getEdgeLabel(blockId, s).toLowerCase().includes('exit'));
-				
-				if (bodyStartId) {
-					// Traverse from bodyStart back to blockId (loop back-edge)
-					const queue = [bodyStartId];
-					const visited = new Set([blockId]); // Already visited blockId
-					
-					while (queue.length > 0) {
-						const currentId = queue.shift();
-						if (visited.has(currentId)) continue;
-						if (currentId === blockId) continue; // Stop at loop head (back-edge)
-						
-						visited.add(currentId);
-						
-						// Add to owned if not already there
-						if (!owned.includes(currentId)) {
-							owned.push(currentId);
-						}
-						
-						// Get successors
-						const nextSuccessors = this.graphState.getSuccessors(currentId);
-						nextSuccessors.forEach(succ => {
-							if (!visited.has(succ)) {
-								queue.push(succ);
-							}
-						});
-					}
-				}
-			} else {
-				// For if-else and case blocks: traverse to exitNodeId
-				const queue = [blockId];
-				const visited = new Set();
-				
-				while (queue.length > 0) {
-					const currentId = queue.shift();
-					if (visited.has(currentId)) continue;
-					if (currentId === externalSuccessorId) continue; // Don't go past the exit
-					
-					visited.add(currentId);
-					
-					// Add to owned if not already there
-					if (!owned.includes(currentId)) {
-						owned.push(currentId);
-					}
-					
-					// Get successors and add them to queue
-					const successors = this.graphState.getSuccessors(currentId);
-					successors.forEach(succ => {
-						// Don't traverse past the external successor
-						if (succ !== externalSuccessorId) {
-							queue.push(succ);
-						}
-					});
-				}
-			}
-		}
-		
-		console.log('[INTERNAL-NODES] Block:', blockId, 'Internal nodes:', owned);
 		return owned;
 	}
 
@@ -1109,60 +1031,8 @@ class BlockManager {
 		console.log('[MOVE] Final edges:', JSON.stringify(this.graphState.edges, null, 2));
 		console.log('[MOVE] Move complete!');
 
-		// Clean up any orphaned edges (edges from/to internal nodes that point outside)
-		this.cleanupOrphanedEdges(blockId, internalNodes);
-
 		this.exitMoveMode();
 		this.renderer.render();
-	}
-
-	cleanupOrphanedEdges(blockId, internalNodes) {
-		// Remove any edges that shouldn't exist after the move
-		// E.g., edges from internal nodes to nodes outside the block
-		// (except the legitimate exit edges we just created)
-		
-		const bounds = this.getBlockBounds(blockId);
-		if (!bounds) return;
-		
-		const { exitNodeId, externalSuccessorId } = bounds;
-		
-		// Keep track of legitimate edges:
-		// 1. Edges between internal nodes (internal structure)
-		// 2. The entry edge to blockId
-		// 3. The exit edge from exitNodeId to externalSuccessorId
-		
-		const edgesToRemove = [];
-		
-		this.graphState.edges.forEach((edge, index) => {
-			const fromInternal = internalNodes.includes(edge.from);
-			const toInternal = internalNodes.includes(edge.to);
-			
-			// Edge from internal node to external node (except legitimate exit)
-			if (fromInternal && !toInternal) {
-				// This is OK only if it's the exit edge
-				if (edge.from === exitNodeId && edge.to === externalSuccessorId) {
-					// This is the legitimate exit edge
-				} else {
-					console.warn('[CLEANUP] Found orphaned edge from internal to external:', edge);
-					edgesToRemove.push(index);
-				}
-			}
-			
-			// Edge from external node to internal node (except entry to blockId)
-			if (!fromInternal && toInternal) {
-				// This is OK only if it's pointing to the main blockId
-				if (edge.to !== blockId) {
-					console.warn('[CLEANUP] Found orphaned edge from external to internal:', edge);
-					edgesToRemove.push(index);
-				}
-			}
-		});
-		
-		// Remove orphaned edges in reverse order to maintain indices
-		edgesToRemove.reverse().forEach(index => {
-			console.log('[CLEANUP] Removing orphaned edge:', this.graphState.edges[index]);
-			this.graphState.edges.splice(index, 1);
-		});
 	}
 
 	findMergeNode(node1Id, node2Id, forbiddenId) {
@@ -1308,58 +1178,36 @@ class DragDropManager {
 		});
 	}
 
-	setupDropZone(zone, edgeFrom, edgeTo) {
-		// Clone the zone to remove all old event listeners
-		const newZone = zone.cloneNode(true);
-		zone.parentNode.replaceChild(newZone, zone);
-		
-		newZone.addEventListener('dragover', (e) => {
+	setupDropZone(zone, edgeIndex) {
+		zone.addEventListener('dragover', (e) => {
 			e.preventDefault();
-			newZone.classList.add('active');
+			zone.classList.add('active');
 		});
 
-		newZone.addEventListener('dragleave', () => {
-			newZone.classList.remove('active');
+		zone.addEventListener('dragleave', () => {
+			zone.classList.remove('active');
 		});
 
-		newZone.addEventListener('drop', (e) => {
+		zone.addEventListener('drop', (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			newZone.classList.remove('active');
+			zone.classList.remove('active');
 			const type = e.dataTransfer.getData('type');
 			if (type) {
-				// Find the edge index at drop time (fresh lookup)
-				const edgeIndex = this.blockManager.graphState.findEdge(edgeFrom, edgeTo);
-				if (edgeIndex !== -1) {
-					this.blockManager.addBlock(type, edgeIndex);
-				} else {
-					console.error('[DROP] Edge not found:', edgeFrom, '->', edgeTo);
-				}
+				this.blockManager.addBlock(type, edgeIndex);
 			}
 		});
-		
-		return newZone;
 	}
 
 	setupAllDropZones() {
-		const zones = document.querySelectorAll('.insertion-drop-zone');
-		console.log('[DRAG-DROP] Setting up', zones.length, 'drop zones');
-		
-		zones.forEach(zone => {
+		document.querySelectorAll('.insertion-drop-zone').forEach(zone => {
 			const edgeFrom = zone.dataset.edgeFrom;
 			const edgeTo = zone.dataset.edgeTo;
-			
 			if (edgeFrom && edgeTo) {
-				// Verify edge exists
 				const edgeIndex = this.blockManager.graphState.findEdge(edgeFrom, edgeTo);
 				if (edgeIndex !== -1) {
-					this.setupDropZone(zone, edgeFrom, edgeTo);
-					console.log('[DRAG-DROP] Setup zone for edge:', edgeFrom, '->', edgeTo);
-				} else {
-					console.warn('[DRAG-DROP] Edge not found:', edgeFrom, '->', edgeTo);
+					this.setupDropZone(zone, edgeIndex);
 				}
-			} else {
-				console.warn('[DRAG-DROP] Zone missing edge data:', zone);
 			}
 		});
 	}
@@ -1384,18 +1232,12 @@ document.addEventListener('DOMContentLoaded', () => {
 	// Initial render
 	renderer.render();
 
-	// Setup drop zones after each render (must be BEFORE first render)
+	// Setup drop zones after each render
 	const originalRender = renderer.render.bind(renderer);
 	renderer.render = function() {
 		originalRender();
-		// Setup drop zones after DOM has fully updated
-		setTimeout(() => {
-			dragDropManager.setupAllDropZones();
-		}, 100);
+		setTimeout(() => dragDropManager.setupAllDropZones(), 10);
 	};
-
-	// Initial render (will call setupAllDropZones via the wrapped render function)
-	renderer.render();
 
 	// Context Menu Setup
 	const contextMenu = document.createElement('div');
