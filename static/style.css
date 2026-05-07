@@ -111,11 +111,9 @@ body {
 .nsd-block {
 	border: 1px solid var(--block-border);
 	background-color: var(--block-bg);
-	width: 100%;
-	/* min-width: 200px;  Removed fixed min-width to allow better nesting behavior */
+	min-width: fit-content;
 	position: relative;
 	box-sizing: border-box;
-	/* Ensure padding doesn't add to width */
 }
 
 .nsd-container {
@@ -198,7 +196,7 @@ body {
 .block-loop-body {
 	display: flex;
 	flex-direction: row;
-	width: 100%;
+	min-width: fit-content;
 	min-height: 30px;
 	background-color: #fff;
 	box-sizing: border-box;
@@ -214,10 +212,9 @@ body {
 
 .loop-content {
 	flex: 1 0 auto;
-	/* Grow, don't shrink */
 	display: flex;
 	flex-direction: column;
-	width: auto;
+	min-width: fit-content;
 	background-color: #fff;
 }
 
@@ -235,12 +232,16 @@ body {
 	display: flex;
 	flex-direction: column;
 	border-bottom: 1px solid var(--block-border);
-	width: 100%;
+	min-width: fit-content;
 }
 
 .block-if-header {
 	position: relative;
-	height: 80px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	min-height: 65px;
+	padding-bottom: 24px;
 	border-bottom: 1px solid var(--block-border);
 }
 
@@ -255,23 +256,27 @@ body {
 	/* Let clicks pass through to text */
 }
 
-/* Position condition text near the top of the IF header */
+/* Condition text inside IF header */
 .if-condition-text {
 	position: absolute;
-	top: 8px;
-	left: 50%;
-	transform: translateX(-50%);
-	text-align: center;
-	padding: 5px 10px;
-	background-color: white;
+	top: 5px;
 	z-index: 1;
-	max-width: 70%;
-	word-wrap: break-word;
+	text-align: center;
+	white-space: nowrap;
+	padding: 4px 8px;
+	transform: translateX(-50%);
+}
+
+/* Spacer below text — leaves room for the V-tip */
+.if-v-spacer {
+	flex: 1 1 0;
+	min-height: 28px;
+	width: 100%;
 }
 
 .block-if-body {
 	display: flex;
-	width: 100%;
+	min-width: fit-content;
 }
 
 /* Labels for Ja/Nein branches */
@@ -285,14 +290,12 @@ body {
 }
 
 .block-if-branch {
-	flex: 1 0 auto;
-	/* Grow, don't shrink */
+	flex: 1 0 auto; /* flex-grow per JS gesetzt, flex-basis auto = Inhaltsbreite wird respektiert */
 	border-right: 1px solid var(--block-border);
 	min-height: 50px;
 	display: flex;
 	flex-direction: column;
-	min-width: 150px;
-	/* Ensure branches have some width */
+	min-width: fit-content;
 }
 
 .block-if-branch:last-child {
@@ -400,7 +403,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	border-bottom: 1px solid var(--block-border);
-	width: 100%;
+	min-width: fit-content;
 }
 
 .block-case-header {
@@ -420,7 +423,7 @@ body {
 
 .block-case-body {
 	display: flex;
-	width: 100%;
+	min-width: fit-content;
 }
 
 .block-case-branch {
@@ -429,7 +432,7 @@ body {
 	min-height: 50px;
 	display: flex;
 	flex-direction: column;
-	min-width: 100px;
+	min-width: fit-content;
 	position: relative;
 }
 

@@ -1,12 +1,14 @@
 from flask import Flask, render_template, request, jsonify
 import json
+import time
 from converter import convert_mermaid_to_nsd
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', v=int(time.time()))
 
 @app.route('/api/save', methods=['POST'])
 def save_diagram():

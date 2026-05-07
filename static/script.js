@@ -493,9 +493,14 @@ _renderIfElse(node, el) {
 const header = document.createElement('div');
 header.className = 'block-if-header';
 
+// Proportionale Breiten: gewichtet nach Anzahl enthaltener Knoten
+const weights = (node.branches || []).map(b => Math.max(1, this._countNodes(b.children || [])));
+const totalWeight = weights.reduce((a, b) => a + b, 0);
+const splitPct = (weights[0] / totalWeight) * 100;
+
 const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 svg.setAttribute("class", "if-svg"); svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("preserveAspectRatio", "none");
-['0,0,50,100', '100,0,50,100'].forEach(pts => {
+[`0,0,${splitPct},100`, `100,0,${splitPct},100`].forEach(pts => {
 const [x1,y1,x2,y2] = pts.split(',');
 const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
 l.setAttribute("x1",x1); l.setAttribute("y1",y1); l.setAttribute("x2",x2); l.setAttribute("y2",y2);
@@ -514,6 +519,7 @@ body.className = 'block-if-body';
 (node.branches || []).forEach((branch, idx) => {
 const bEl = document.createElement('div');
 bEl.className = 'block-if-branch';
+bEl.style.flex = `${weights[idx]} 0 auto`;
 const lbl = document.createElement('div');
 lbl.className = 'if-branch-label'; lbl.textContent = branch.label;
 bEl.appendChild(lbl);
@@ -522,6 +528,17 @@ body.appendChild(bEl);
 });
 el.appendChild(body);
 setTimeout(() => { if (typeof observeIfResize === 'function') observeIfResize(el, header, body); }, 0);
+}
+
+/** Zählt rekursiv alle Knoten in einer Sequenz. */
+_countNodes(seq) {
+let count = 0;
+for (const node of seq) {
+count++;
+if (node.children) count += this._countNodes(node.children);
+if (node.branches) node.branches.forEach(b => { count += this._countNodes(b.children || []); });
+}
+return count;
 }
 
 _renderLoop(node, el) {
@@ -592,6 +609,7 @@ setTimeout(() => { if (typeof observeCaseResize === 'function') observeCaseResiz
 
 _editable(element, node) {
 element.contentEditable = true;
+element.spellcheck = false;
 element.addEventListener('blur', e => {
 node.text = e.target.textContent;
 if (typeof updateMermaid === 'function') updateMermaid();
@@ -875,8 +893,6 @@ const lines = Array.from(svg.querySelectorAll('line'));
 const lL = lines.find(l => l.getAttribute('x1')==="0" && l.getAttribute('y1')==="0");
 const lR = lines.find(l => l.getAttribute('x1')==="100" && l.getAttribute('y1')==="0");
 if (lL) lL.setAttribute("x2", cp); if (lR) lR.setAttribute("x2", cp);
-const tc = header.querySelector('.if-condition-text');
-if (tc) { tc.style.left = ((50+cp)/2)+'%'; tc.style.transform = 'translateX(-50%)'; tc.style.width = 'auto'; }
 });
 }
 
@@ -891,14 +907,18 @@ const lines = Array.from(svg.querySelectorAll('line'));
 const lL = lines.find(l => l.getAttribute('x1')==="0" && l.getAttribute('y1')==="0");
 const lR = lines.find(l => l.getAttribute('x1')==="100" && l.getAttribute('y1')==="0");
 if (lL) lL.setAttribute("x2", cp); if (lR) lR.setAttribute("x2", cp);
+// Geometrische Mitte zwischen den V-Linien auf Texthöhe (ca. 20% von oben)
+// mid(h) = 50 + (cp - 50) * h  →  bei h=0.2 leichte Verschiebung Richtung V-Spitze
 const tc = header.querySelector('.if-condition-text');
-if (tc) { tc.style.left = ((50+cp)/2)+'%'; tc.style.transform = 'translateX(-50%)'; tc.style.width = 'auto'; }
+if (tc) tc.style.left = (50 + (cp - 50) * 0.2) + '%';
 };
 const obs = new ResizeObserver(update);
 obs.observe(body);
+obs.observe(header);
 body.querySelectorAll('.block-if-branch').forEach(b => obs.observe(b));
 setTimeout(update, 50);
 }
+
 
 function observeCaseResize(container, header, body) {
 const svg = header.querySelector('.case-svg'); if (!svg) return;
