@@ -1,0 +1,221 @@
+{
+  "nodes": [
+    {
+      "id": "start_node_id",
+      "type": "start",
+      "text": "Start"
+    },
+    {
+      "id": "end_node_id",
+      "type": "end",
+      "text": "End"
+    },
+    {
+      "id": "movl20luuecawstqx2c",
+      "type": "command",
+      "text": "ledPins[8]={9,19,14,4,33,15,13,32}"
+    },
+    {
+      "id": "movl230wqsurv5ethnp",
+      "type": "for_loop",
+      "text": "i = 0 to 9"
+    },
+    {
+      "id": "movl230wqsurv5ethnp_body_dummy",
+      "type": "join",
+      "text": " "
+    },
+    {
+      "id": "movl269f2dlxlx6yu12",
+      "type": "command",
+      "text": "alle_LEDs_ausschalten"
+    },
+    {
+      "id": "movl27yuy781jfovaj",
+      "type": "for_loop",
+      "text": "u = 0 to 2"
+    },
+    {
+      "id": "movl27yuy781jfovaj_body_dummy",
+      "type": "join",
+      "text": " "
+    },
+    {
+      "id": "movl2cxeopmn8j5a9tb",
+      "type": "if_else",
+      "text": "Bedingung"
+    },
+    {
+      "id": "movl2cxeopmn8j5a9tb_merge",
+      "type": "join",
+      "text": " "
+    },
+    {
+      "id": "movl2cxeopmn8j5a9tb_true_dummy",
+      "type": "join",
+      "text": " "
+    },
+    {
+      "id": "movl2cxeopmn8j5a9tb_false_dummy",
+      "type": "join",
+      "text": " "
+    },
+    {
+      "id": "movl2kmgpj23eoraeo",
+      "type": "command",
+      "text": "Do something"
+    },
+    {
+      "id": "movl2q7pqxxkid3w5hs",
+      "type": "command",
+      "text": "Do something"
+    },
+    {
+      "id": "movl4qcd5mi1zcmcw16",
+      "type": "command",
+      "text": "ledPin = ledPins[i-2+u]"
+    },
+    {
+      "id": "movl4usqodk23gwrjzb",
+      "type": "command",
+      "text": "led_einschalten(ledPin)"
+    },
+    {
+      "id": "movl4xuozml8bebur3e",
+      "type": "command",
+      "text": "delay(100)"
+    },
+    {
+      "id": "movl4zuavc359qkuxw8",
+      "type": "command",
+      "text": "-"
+    },
+    {
+      "id": "movl796lm55jh4exa7e",
+      "type": "command",
+      "text": "warten auf Tastendruck S1"
+    },
+    {
+      "id": "movl7l55hpvmcroc5iq",
+      "type": "subprogram",
+      "text": "Initialisierung ports"
+    },
+    {
+      "id": "movm3c26wjcs55wlzgq",
+      "type": "while_loop",
+      "text": "while True"
+    },
+    {
+      "id": "movm3c26wjcs55wlzgq_body_dummy",
+      "type": "join",
+      "text": " "
+    }
+  ],
+  "edges": [
+    {
+      "from": "start_node_id",
+      "to": "movl20luuecawstqx2c"
+    },
+    {
+      "from": "movl230wqsurv5ethnp",
+      "to": "movl230wqsurv5ethnp_body_dummy"
+    },
+    {
+      "from": "movl230wqsurv5ethnp_body_dummy",
+      "to": "movl269f2dlxlx6yu12"
+    },
+    {
+      "from": "movl269f2dlxlx6yu12",
+      "to": "movl27yuy781jfovaj"
+    },
+    {
+      "from": "movl27yuy781jfovaj",
+      "to": "movl27yuy781jfovaj_body_dummy"
+    },
+    {
+      "from": "movl27yuy781jfovaj_body_dummy",
+      "to": "movl2cxeopmn8j5a9tb"
+    },
+    {
+      "from": "movl2cxeopmn8j5a9tb",
+      "to": "movl2cxeopmn8j5a9tb_true_dummy",
+      "label": "Ja"
+    },
+    {
+      "from": "movl2cxeopmn8j5a9tb",
+      "to": "movl2cxeopmn8j5a9tb_false_dummy",
+      "label": "Nein"
+    },
+    {
+      "from": "movl2cxeopmn8j5a9tb_merge",
+      "to": "movl27yuy781jfovaj"
+    },
+    {
+      "from": "movl27yuy781jfovaj",
+      "to": "movl2kmgpj23eoraeo",
+      "label": "Exit"
+    },
+    {
+      "from": "movl2kmgpj23eoraeo",
+      "to": "movl230wqsurv5ethnp"
+    },
+    {
+      "from": "movl230wqsurv5ethnp",
+      "to": "movl2q7pqxxkid3w5hs",
+      "label": "Exit"
+    },
+    {
+      "from": "movl2q7pqxxkid3w5hs",
+      "to": "end_node_id"
+    },
+    {
+      "from": "movl2cxeopmn8j5a9tb_true_dummy",
+      "to": "movl4qcd5mi1zcmcw16"
+    },
+    {
+      "from": "movl4qcd5mi1zcmcw16",
+      "to": "movl4usqodk23gwrjzb"
+    },
+    {
+      "from": "movl4usqodk23gwrjzb",
+      "to": "movl4xuozml8bebur3e"
+    },
+    {
+      "from": "movl4xuozml8bebur3e",
+      "to": "movl2cxeopmn8j5a9tb_merge"
+    },
+    {
+      "from": "movl2cxeopmn8j5a9tb_false_dummy",
+      "to": "movl4zuavc359qkuxw8"
+    },
+    {
+      "from": "movl4zuavc359qkuxw8",
+      "to": "movl2cxeopmn8j5a9tb_merge"
+    },
+    {
+      "from": "movl20luuecawstqx2c",
+      "to": "movl7l55hpvmcroc5iq"
+    },
+    {
+      "from": "movl7l55hpvmcroc5iq",
+      "to": "movl796lm55jh4exa7e"
+    },
+    {
+      "from": "movl796lm55jh4exa7e",
+      "to": "movm3c26wjcs55wlzgq"
+    },
+    {
+      "from": "movm3c26wjcs55wlzgq",
+      "to": "movm3c26wjcs55wlzgq_body_dummy"
+    },
+    {
+      "from": "movm3c26wjcs55wlzgq_body_dummy",
+      "to": "movm3c26wjcs55wlzgq"
+    },
+    {
+      "from": "movm3c26wjcs55wlzgq",
+      "to": "movl230wqsurv5ethnp",
+      "label": "Exit"
+    }
+  ]
+}
