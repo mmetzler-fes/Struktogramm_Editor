@@ -21,11 +21,12 @@ def save_diagram():
 def convert_nsd():
     data = request.json
     mermaid_code = data.get('mermaid')
+    subprograms = data.get('subprograms', {})
     if not mermaid_code:
         return jsonify({"error": "No mermaid code provided"}), 400
     
     try:
-        svg_output = convert_mermaid_to_nsd(mermaid_code)
+        svg_output = convert_mermaid_to_nsd(mermaid_code, subprograms)
         return jsonify({"svg": svg_output})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

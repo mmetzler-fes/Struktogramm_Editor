@@ -11,27 +11,48 @@ PADDING_X = 10
 PADDING_Y = 10
 MIN_BLOCK_WIDTH = 100
 
-def convert_mermaid_to_nsd(mermaid_content):
+def convert_mermaid_to_nsd(mermaid_content, subprograms=None):
     graph, start_node = parse_mermaid(mermaid_content)
     if not start_node:
         return '<svg><text>Error: No start node found</text></svg>'
         
     structured_tree = build_structure(graph, start_node, None, set())
-    
-    # 1. Calculate Minimum Widths
-    # We need to annotate the tree with min_width requirements
     total_min_width = calculate_min_widths(structured_tree)
-    
-    # Ensure a reasonable total width, but at least the min required
     width = max(800, total_min_width)
-    
-    # 2. Calculate Heights based on the actual width we will use
-    # We pass the available width to calculate wrapping
     total_height = calculate_heights(structured_tree, width)
     
     svg_content = render_blocks(structured_tree, 0, 0, width)
+    current_y = total_height
     
-    return f'<svg width="{width}" height="{total_height}" xmlns="http://www.w3.org/2000/svg" style="font-family: Arial, sans-serif;">{svg_content}</svg>'
+    # Subprogramme als separate NSD-Diagramme darunter rendern
+    if subprograms:
+        GAP = 40
+        LABEL_H = 28
+        for node_id, sub_data in subprograms.items():
+            name       = sub_data.get('name', node_id)
+            sub_mermaid = sub_data.get('mermaid', '')
+            if not sub_mermaid:
+                continue
+            sub_graph, sub_start = parse_mermaid(sub_mermaid)
+            if not sub_start:
+                continue
+            sub_tree   = build_structure(sub_graph, sub_start, None, set())
+            sub_min_w  = calculate_min_widths(sub_tree)
+            sub_w      = max(800, sub_min_w)
+            sub_h      = calculate_heights(sub_tree, sub_w)
+            current_y += GAP
+            svg_content += (
+                f'<text x="0" y="{current_y + LABEL_H - 6}" '
+                f'font-size="15" font-weight="bold" '
+                f'font-family="Arial, sans-serif">'
+                f'Unterprogramm: {html.escape(name)}</text>'
+            )
+            current_y += LABEL_H
+            svg_content += render_blocks(sub_tree, 0, current_y, sub_w)
+            current_y += sub_h
+            width = max(width, sub_w)
+    
+    return f'<svg width="{width}" height="{current_y}" xmlns="http://www.w3.org/2000/svg" style="font-family: Arial, sans-serif;">{svg_content}</svg>'
 
 def parse_mermaid(content):
     G = nx.DiGraph()
@@ -97,17 +118,18 @@ def parse_mermaid(content):
     return G, start_node
 
 def parse_node_str(node_str):
-    m = re.match(r'(\w+)\s*(\[".*?"\]|\{".*?"\}|\(\[".*?"\]\)|\(\(".*?"\)\)|\(\[.*?\]\))?', node_str)
+    m = re.match(r'(\w+)\s*(\[\[".*?"\]\]|\[".*?"\]|\{".*?"\}|\(\[".*?"\]\)|\(\(".*?"\)\)|\(\[.*?\]\))?', node_str)
     if not m: return None, None, None
     node_id = m.group(1)
     rest = m.group(2)
     label = node_id
     node_type = 'process'
     if rest:
-        if rest.startswith('["'): label = rest[2:-2]; node_type = 'process'
+        if rest.startswith('[["'):  label = rest[3:-3]; node_type = 'subprogram'
+        elif rest.startswith('["'): label = rest[2:-2]; node_type = 'process'
         elif rest.startswith('{"'): label = rest[2:-2]; node_type = 'decision'
         elif rest.startswith('(["'): label = rest[3:-3]; node_type = 'terminal'
-        elif rest.startswith('(("'): label = rest[3:-3]; node_type = 'loop' # My editor uses this for loops
+        elif rest.startswith('(("'): label = rest[3:-3]; node_type = 'loop'
         elif rest.startswith('(['): label = rest[2:-2]; node_type = 'terminal'
     return node_id, label, node_type
 
@@ -334,7 +356,7 @@ def calculate_min_widths(blocks):
     for block in blocks:
         text_width = len(block['label']) * CHAR_WIDTH_AVG + PADDING_X * 2
         
-        if block['type'] == 'process':
+        if block['type'] in ('process', 'subprogram'):
             block['min_width'] = max(text_width, MIN_BLOCK_WIDTH)
             
         elif block['type'] == 'decision':
@@ -392,7 +414,7 @@ def calculate_heights(blocks, width):
         lines = math.ceil(text_len / max(1, text_area_width))
         text_height = lines * LINE_HEIGHT + PADDING_Y * 2
         
-        if block['type'] == 'process':
+        if block['type'] in ('process', 'subprogram'):
             block['height'] = max(40, text_height)
             total_h += block['height']
             
@@ -477,16 +499,26 @@ def render_blocks(blocks, x, y, width):
         if block['type'] == 'process':
             h = block['height']
             svg += f'<rect x="{x}" y="{current_y}" width="{width}" height="{h}" fill="white" stroke="black" stroke-width="1"/>'
-            
-            # Render text with wrapping
             lines = wrap_text(block['label'], width - PADDING_X * 2)
             text_y = current_y + PADDING_Y + FONT_SIZE/2
             for line in lines:
                 svg += f'<text x="{x + 10}" y="{text_y}" font-size="{FONT_SIZE}" font-family="Arial, sans-serif">{html.escape(line)}</text>'
                 text_y += LINE_HEIGHT
-                
             current_y += h
-            
+
+        elif block['type'] == 'subprogram':
+            # Doppelter Rahmen (Struktogramm-Standard für Unterprogramme)
+            h = block['height']
+            border = 4
+            svg += f'<rect x="{x}" y="{current_y}" width="{width}" height="{h}" fill="white" stroke="black" stroke-width="1"/>'
+            svg += f'<rect x="{x+border}" y="{current_y+border}" width="{width-2*border}" height="{h-2*border}" fill="none" stroke="black" stroke-width="1"/>'
+            lines = wrap_text(block['label'], width - PADDING_X * 2 - border * 2)
+            text_y = current_y + PADDING_Y + FONT_SIZE/2
+            for line in lines:
+                svg += f'<text x="{x + width/2}" y="{text_y}" text-anchor="middle" font-size="{FONT_SIZE}" font-family="Arial, sans-serif">{html.escape(line)}</text>'
+                text_y += LINE_HEIGHT
+            current_y += h
+
         elif block['type'] == 'decision':
             header_h = block['header_height']
             content_h = block['content_height']
