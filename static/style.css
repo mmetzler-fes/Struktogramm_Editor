@@ -68,14 +68,16 @@ body {
 
 .canvas {
 	flex: 1;
+	min-height: 0;
 	background-color: white;
 	border: 1px solid var(--border-color);
 	border-radius: 8px;
 	padding: 40px;
 	overflow: auto;
 	display: flex;
-	justify-content: center;
-	align-items: flex-start;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 24px;
 }
 
 .output-area {
@@ -551,4 +553,114 @@ body.move-mode .nsd-block:not(.move-source) {
 
 body.move-mode {
 	cursor: crosshair;
+}
+
+/* ===== Subprogramm-Blöcke ===== */
+
+.block-subprogram {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 10px;
+}
+
+.subprogram-text {
+	flex: 1;
+	text-align: center;
+}
+
+.subprogram-edit-btn {
+	flex-shrink: 0;
+	padding: 2px 8px;
+	font-size: 0.78em;
+	background: #e2e8f0;
+	border: 1px solid #94a3b8;
+	border-radius: 4px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.subprogram-edit-btn:hover {
+	background: #cbd5e1;
+}
+
+/* ===== Subprogramm-Navigation ===== */
+
+.nsd-back-btn {
+	display: block;
+	width: 100%;
+	padding: 8px 16px;
+	margin-bottom: 12px;
+	background: #3b82f6;
+	color: white;
+	border: none;
+	border-radius: 6px;
+	font-size: 0.9em;
+	font-weight: 600;
+	cursor: pointer;
+	text-align: left;
+}
+
+.nsd-back-btn:hover {
+	background: #2563eb;
+}
+
+/* ===== Subprogramm-Sektionen (Hauptansicht) ===== */
+
+.nsd-subprogram-section {
+	border: 2px solid #3b82f6;
+	border-radius: 6px;
+	width: 100%;
+}
+
+.nsd-subprogram-diagram {
+	padding: 20px;
+	background: white;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+}
+
+.nsd-subprogram-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 12px;
+	background: #f1f5f9;
+	border-bottom: 1px solid #94a3b8;
+}
+
+.nsd-subprogram-label {
+	font-weight: 600;
+	font-size: 0.9em;
+	color: #334155;
+}
+
+.nsd-edit-sub-btn {
+	padding: 3px 10px;
+	font-size: 0.8em;
+	background: #3b82f6;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.nsd-edit-sub-btn:hover {
+	background: #2563eb;
+}
+
+.nsd-subprogram-preview {
+	padding: 10px 14px;
+	font-size: 0.85em;
+	color: #64748b;
+	font-style: italic;
+}
+
+.nsd-main-section {
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+}
 }
